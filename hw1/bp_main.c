@@ -10,7 +10,6 @@
 #include "bp_api.h"
 
 int main(int argc, char **argv) {
-
 	if (argc < 2) {
 		fprintf(stderr, "Usage: %s <trace filename>\n", argv[0]);
 		exit(1);
@@ -109,8 +108,7 @@ int main(int argc, char **argv) {
 
 	SIM_stats stats;
 	BP_GetStats(&stats);
-	printf("flush_num: %d, br_num: %d, size: %db\n", stats.flush_num, stats.br_num, stats.size);
-
+	printf("flush_num: %d, br_num: %d, size: %db\n", stats.flush_num, stats.br_num,stats.size);
 	return 0;
 }
 

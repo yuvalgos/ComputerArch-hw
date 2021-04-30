@@ -14,6 +14,7 @@ using namespace std;
 struct BTBEntry
 {
 public:
+	bool isValid;
 	uint32_t tag;
 	uint32_t target;
 	uint32_t actual_command; // for debuging only
@@ -52,10 +53,11 @@ struct IntermediateValues
 	bool isNewPC;
 	bool isTake;
 	int entry_id;
-	unsigned tag;
+	uint32_t tag;
 };
 
 
+// every thing we need is saved in those global variables:
 struct BTB btb;
 struct IntermediateValues ivals;
 int instruction_count;
@@ -64,7 +66,7 @@ int flush_count;
 
 int BP_init(unsigned btbSize, unsigned historySize, unsigned tagSize, unsigned fsmState,
 			bool isGlobalHist, bool isGlobalTable, int Shared){
-	
+
 	// save parameters:
 	btb.size = btbSize;
 	btb.history_size = historySize;
@@ -79,6 +81,7 @@ int BP_init(unsigned btbSize, unsigned historySize, unsigned tagSize, unsigned f
 	{
 		BTBEntry e;
 		e.tag = e.target = 0;
+		e.isValid = false;
 		btb.entries.push_back(e);
 	}
 
@@ -98,7 +101,7 @@ int BP_init(unsigned btbSize, unsigned historySize, unsigned tagSize, unsigned f
 
 	// initialize history:
 	btb.history_entries = btbSize;
-	if(!isGlobalHist) 
+	if(isGlobalHist) 
 		btb.history_entries = 1;
 	
 	for(int i = 0; i < btb.history_entries; i++)
@@ -120,11 +123,11 @@ bool BP_predict(uint32_t pc, uint32_t *dst)
 	// resolve entry id and tag:
 	int entry_id = (pc >> 2) % btb.size;
 	
-	unsigned tag_start = log2(btb.size) + 2;
-	unsigned mask = ((1 << btb.tag_size) - 1) << tag_start;
-	unsigned tag = (pc & mask) >> tag_start;
+	uint32_t tag_start = log2(btb.size) + 2;
+	uint32_t mask = ((1 << btb.tag_size) - 1) << tag_start;
+	uint32_t tag = (pc & mask) >> tag_start;
 
-	if(tag != btb.entries[entry_id].tag)
+	if(tag != btb.entries[entry_id].tag || !btb.entries[entry_id].isValid)
 	{	// not in table
 		// cout<<"command in table " << btb.entries[entry_id].actual_command << endl;
 		// save values in order to use them in update:
@@ -153,13 +156,13 @@ bool BP_predict(uint32_t pc, uint32_t *dst)
 		if(btb.share_method == 1)
 		{
 			unsigned mask = ((1 << btb.history_size) - 1) << 2;
-			unsigned pc_share_bits = mask&pc >> 2;
+			unsigned pc_share_bits = (mask&pc) >> 2;
 			share_id = pc_share_bits ^ pc_history;
 		}
 		else if (btb.share_method == 2)
 		{
 			unsigned mask = ((1 << btb.history_size) - 1) << 16;
-			unsigned pc_share_bits = mask&pc >> 16;
+			unsigned pc_share_bits = (mask&pc) >> 16;
 			share_id = pc_share_bits ^ pc_history;
 		}
 
@@ -173,8 +176,8 @@ bool BP_predict(uint32_t pc, uint32_t *dst)
 		{
 			state = btb.state_machines[0][share_id];
 		}
-	}
-	else
+	} 
+	else // local SM
 	{
 		state = btb.state_machines[entry_id][pc_history];
 	}
@@ -209,6 +212,7 @@ void BP_update(uint32_t pc, uint32_t targetPc, bool taken, uint32_t pred_dst)
 	if(ivals.isNewPC)
 	{
 		// reset relevant fields in btb
+		btb.entries[ivals.entry_id].isValid = true;
 		btb.entries[ivals.entry_id].tag = ivals.tag;
 		btb.entries[ivals.entry_id].target = targetPc;
 		btb.entries[ivals.entry_id].actual_command = pc;
@@ -226,7 +230,7 @@ void BP_update(uint32_t pc, uint32_t targetPc, bool taken, uint32_t pred_dst)
 	}
 
 	// update target destination in case it has changed
-	if(taken && targetPc != pred_dst)
+	if(targetPc != pred_dst)
 		btb.entries[ivals.entry_id].target = targetPc;
 	
 	// update history:
@@ -261,13 +265,16 @@ void BP_update(uint32_t pc, uint32_t targetPc, bool taken, uint32_t pred_dst)
 		if(btb.share_method == 1)
 		{
 			unsigned mask = ((1 << btb.history_size) - 1) << 2;
-			unsigned pc_share_bits = mask&pc >> 2;
+			unsigned pc_share_bits = (mask&pc) >> 2;
 			share_id = pc_share_bits ^ old_history;
+			// cout<< "pc_share_bits " << bitset<32>(pc_share_bits) << endl;
+			// cout<< "old_history " << bitset<32>(old_history) << endl;
+			// cout<< "share_id " << bitset<32>(share_id) << endl;
 		}
 		else if (btb.share_method == 2)
 		{
 			unsigned mask = ((1 << btb.history_size) - 1) << 16;
-			unsigned pc_share_bits = mask&pc >> 16;
+			unsigned pc_share_bits = (mask&pc) >> 16;
 			share_id = pc_share_bits ^ old_history;
 		}
 
@@ -286,10 +293,19 @@ void BP_update(uint32_t pc, uint32_t targetPc, bool taken, uint32_t pred_dst)
 		}
 		else
 		{
+			// cout << "sm vector:";
+			// for(int j = 0; j < (1<<btb.history_size) ; j++)
+			// 	cout << btb.state_machines[0][j] << ", ";
+			// cout << endl;
+			// cout << "id " << share_id << endl;
+			// std::cout<< "sm old: " << btb.state_machines[0][share_id] << endl;
+
 			if(taken && btb.state_machines[0][share_id] < 3)
 				btb.state_machines[0][share_id]++;
 			else if(!taken && btb.state_machines[0][share_id] > 0)
 				btb.state_machines[0][share_id]--;
+			
+			// std::cout<< "sm updated: " << btb.state_machines[0][share_id] << endl; 
 		}
 	}
 	else // local state machine
@@ -316,6 +332,24 @@ void BP_update(uint32_t pc, uint32_t targetPc, bool taken, uint32_t pred_dst)
 void BP_GetStats(SIM_stats *curStats){
 	curStats->br_num = instruction_count;
 	curStats->flush_num = flush_count;
-	curStats->size = 5000;
+
+	if (btb.isGlobalHist && btb.isGlobalSMTable) 
+	{
+		curStats->size = btb.size * (btb.tag_size + 30) + (2<<btb.history_size) + btb.history_size;
+	}
+	else if (btb.isGlobalHist && !btb.isGlobalSMTable) 
+	{
+		curStats->size = btb.size * (btb.tag_size + 30 + (2<<btb.history_size)) + btb.history_size;
+	}
+	else if (!btb.isGlobalHist && !btb.isGlobalSMTable) 
+	{
+		curStats->size = btb.size * (btb.tag_size + 30 + btb.history_size + (2<<btb.history_size));
+	}
+	else if (!btb.isGlobalHist && btb.isGlobalSMTable) 
+	{
+		curStats->size = btb.size * (btb.tag_size + 30 + btb.history_size) + (2<<btb.history_size);
+	}
+	// add valid bit (?)
+	// curStats->size += btb.size;
 }
 
