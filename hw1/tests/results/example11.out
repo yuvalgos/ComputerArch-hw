@@ -7,4 +7,4 @@
 0x87654 T 0x45678
 0x10c N 0x110
 0x87654 N 0x87658
-flush_num: 5, br_num: 9, size: 66b
+flush_num: 5, br_num: 9, size: 67b

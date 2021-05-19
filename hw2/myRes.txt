@@ -1,0 +1,31 @@
+operation: w, address (hex)00000000 (dec) 0
+(block dec) 0
+set 0: 
+set 1: 
+set 0: 
+operation: r, address (hex)00010000 (dec) 65536
+(block dec) 16384
+set 0: 0, 
+set 1: 
+set 0: 0, 
+operation: r, address (hex)00020000 (dec) 131072
+(block dec) 32768
+set 0: 16384, 0, 
+set 1: 
+set 0: 16384, 0, 
+operation: r, address (hex)00030000 (dec) 196608
+(block dec) 49152
+set 0: 32768, 16384, 
+set 1: 
+set 0: 32768, 16384, 0, 
+operation: r, address (hex)00040000 (dec) 262144
+(block dec) 65536
+set 0: 49152, 32768, 
+set 1: 
+set 0: 49152, 32768, 16384, 0, 
+operation: r, address (hex)00000000 (dec) 0
+(block dec) 0
+set 0: 65536, 49152, 
+set 1: 
+set 0: 65536, 49152, 32768, 16384, 
+L1miss=1.000 L2miss=1.000 AccTimeAvg=16.000

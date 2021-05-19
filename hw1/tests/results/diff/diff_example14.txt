@@ -1,0 +1,4 @@
+38c38
+< flush_num: 19, br_num: 37, size: 118b
+---
+> flush_num: 19, br_num: 37, size: 120b

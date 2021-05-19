@@ -1,0 +1,4 @@
+12c12
+< flush_num: 6, br_num: 11, size: 235b
+---
+> flush_num: 6, br_num: 11, size: 239b
