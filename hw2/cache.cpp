@@ -66,11 +66,14 @@ public:
         for(int i =0; i<num_lines; i++)
         {   
             #ifdef PRINT_DEBUG
+            if(count_if_hit)
+            {
                 cout << "set " << std::to_string(i) << ": ";
                 for (auto const &j: data[i]) {
                     cout << j << ", ";
                 }
                 cout << endl;
+            }
             #endif
 
             // check if in current line:

@@ -140,16 +140,17 @@ int main(int argc, char **argv) {
 			}
 
 			/* insert to l1 if needed,
-				if evacuated block is dirty it has to be promoted in the lru
-				mechanism in l2 so we use AccessTry on l2 to make it happen*/ 
+			if evacuated block is dirty it has to be promoted in the lru
+			mechanism in l2 so we use AccessTry on l2 to make it happen*/ 
 			if(operation == 'r' || WrAlloc == 1)
 			{
-				// TODO add dirty bit and return value to insert if it was dirty
 				unsigned long int evacuated_block;
 				bool is_evacuated_dirty;
 				if(l1.Insert(block, operation, &evacuated_block, &is_evacuated_dirty))
 					l2.AccessTry(evacuated_block, 'w', false);
+				
 			}
+
 		}
 
 		inst_count ++;
