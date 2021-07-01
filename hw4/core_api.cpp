@@ -5,9 +5,17 @@
 #include <vector>
 #include <algorithm>
 
-#include <stdio.h>
+#include <iostream>
 
-typedef struct simData{
+
+using std::vector;
+
+
+// predicates
+bool isFalse(bool var){return !var;}
+bool isNotZero(int var){return var != 0;}
+
+struct simData{
 	/* next instruction id for each thread. the value in place i in the vector
 		corresponds to the instruction id in thread i */
 	vector<int> inst_id;
@@ -26,19 +34,34 @@ typedef struct simData{
 
 	int inst_count;
 
-	void simData(int thread_count):
+	simData(int thread_count):
 		inst_id(vector<int>(thread_count,0)),
 		regs(vector< vector<int> >(thread_count, vector<int>(REGS_COUNT, 0))),
 		is_done_threads(vector<bool>(thread_count, false)),
 		sleep_cycles(vector<int>(thread_count,0)),
 		cycle_count(0),
 		inst_count(0)
-	{};
+	{
+
+	};
 
 	// return false as long as there are threads that didn't finish
 	bool isDone()
 	{
-		return std::none_of(is_done_threads.begin(), is_done_threads.end(), compare(false));
+		for(int t_done :is_done_threads)
+		{
+			if(t_done == false) return false;
+		}
+		return true;
+	}
+
+	bool areThereThreadsNotSleeeping()
+	{
+		for(int s : sleep_cycles)
+		{
+			if(s == 0) return true;
+		}
+		return false;
 	}
 
 	/* one cycle has passed (no command comited)
@@ -46,10 +69,10 @@ typedef struct simData{
 	void runCycle()
 	{
 		cycle_count ++;
-		for(s : sleep_cycles)
+		for(int i = 0; i<SIM_GetThreadsNum(); i++)
 		{
-			if(s > 0)
-				s--;
+			if(sleep_cycles[i] > 0)
+				sleep_cycles[i]--;		
 		}
 	}
 
@@ -61,20 +84,22 @@ typedef struct simData{
 };
 
 
-simData *sim_data;
+simData* sim_data;
 
 
 void CORE_BlockedMT() 
 {
 	sim_data = new simData(SIM_GetThreadsNum());
-	
+
 	int curr_thread = 0;
 	while(!sim_data->isDone())
 	{
+		//std::cout<<"while start";
 		// check if there are threads to run if not run idle instruction
-		if(std::none_of(sim_data->sleep_cycles.begin(), sim_data->sleep_cycles.end(), compare(0)))
+		if(!sim_data->areThereThreadsNotSleeeping())
 		{
-			sim_data->runCycle()
+			
+			sim_data->runCycle();
 			continue;
 		}
 
@@ -83,7 +108,7 @@ void CORE_BlockedMT()
 		if(sim_data->sleep_cycles[curr_thread] != 0)
 		{
 			// find next thread:
-			while(sleep_cycles[curr_thread] != 0)
+			while(sim_data->sleep_cycles[curr_thread] != 0)
 			{
 				curr_thread ++;
 				curr_thread = curr_thread % SIM_GetThreadsNum();
@@ -109,8 +134,8 @@ void CORE_BlockedMT()
 		{
 			case CMD_HALT: 
 			{
-				sim_data->isDone[curr_thread] = true;
-				sim_data->sleep_cycles = -1;
+				sim_data->is_done_threads[curr_thread] = true;
+				sim_data->sleep_cycles[curr_thread] = -1;
 				break;
 			} 
 			case CMD_ADD:
@@ -145,7 +170,7 @@ void CORE_BlockedMT()
 					src2 = inst.src2_index_imm;
 				
 				// load:
-				SIM_MemDataRead(src2 + inst.src2_index, &sim_data->regs[curr_thread][inst.dst_index]);
+				SIM_MemDataRead(src2 + inst.src1_index, &(sim_data->regs[curr_thread][inst.dst_index]));
 
 				// go to sleep:
 				sim_data->sleep_cycles[curr_thread] += SIM_GetLoadLat();
@@ -179,24 +204,23 @@ void CORE_FinegrainedMT()
 	// don't pay for context switch.
 
 	sim_data = new simData(SIM_GetThreadsNum());
-
 	
 	int curr_thread = 0;
 	while(!sim_data->isDone())
 	{
 		// check if there are threads to run, if not run idle instruction
-		if(std::none_of(sim_data->sleep_cycles.begin(), sim_data->sleep_cycles.end(), compare(0)))
+		if(!sim_data->areThereThreadsNotSleeeping())
 		{
-			sim_data->runCycle()
+			sim_data->runCycle();
 			continue;
 		}
 
-		// check if current thread is asleep, if it is, advance to the next one available
+		// check if current thread is  asleep, if it is, advance to the next one available
 		// (make sure it's not done)
 		if(sim_data->sleep_cycles[curr_thread] != 0)
 		{
 			// find next thread:
-			while(sleep_cycles[curr_thread] != 0)
+			while(sim_data->sleep_cycles[curr_thread] != 0)
 			{
 				curr_thread ++;
 				curr_thread = curr_thread % SIM_GetThreadsNum();
@@ -215,8 +239,8 @@ void CORE_FinegrainedMT()
 		{
 			case CMD_HALT: 
 			{
-				sim_data->isDone[curr_thread] = true;
-				sim_data->sleep_cycles = -1;
+				sim_data->is_done_threads[curr_thread] = true;
+				sim_data->sleep_cycles[curr_thread] = -1;
 				break;
 			} 
 			case CMD_ADD:
@@ -251,7 +275,7 @@ void CORE_FinegrainedMT()
 					src2 = inst.src2_index_imm;
 				
 				// load:
-				SIM_MemDataRead(src2 + inst.src2_index, &sim_data->regs[curr_thread][inst.dst_index]);
+				SIM_MemDataRead(src2 + inst.src1_index, &(sim_data->regs[curr_thread][inst.dst_index]));
 
 				// go to sleep:
 				sim_data->sleep_cycles[curr_thread] += SIM_GetLoadLat();
@@ -301,11 +325,13 @@ double CORE_FinegrainedMT_CPI()
 void CORE_BlockedMT_CTX(tcontext* context, int threadid) 
 {
 	for(int i = 0; i < REGS_COUNT; i++)
-		context->reg[i] = sim_data->regs[threadid][i];
+	{
+		context[threadid].reg[i] = sim_data->regs[threadid][i];
+	}
 }
 
 void CORE_FinegrainedMT_CTX(tcontext* context, int threadid) 
 {
 	for(int i = 0; i < REGS_COUNT; i++)
-	context->reg[i] = sim_data->regs[threadid][i];
+		context[threadid].reg[i] = sim_data->regs[threadid][i];
 }

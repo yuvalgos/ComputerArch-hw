@@ -1,0 +1,26 @@
+didnt continueiter enddidnt continuedidnt continueiter enddidnt continuedidnt continueiter end-1,3,3,
+-1,2,2,
+-1,1,1,
+didnt continueiter enddidnt continuedidnt continueiter enddidnt continueiter enddidnt continueiter end-1,-1,1,
+didnt continuedidnt continueiter enddidnt continueiter enddidnt continueiter endloop end
+
+---- Blocked MT Simulation ----
+
+Register file thread id 0:
+	R0 = 0x0	R1 = 0x0	R2 = 0x0	R3 = 0x0	R4 = 0x0	R5 = 0x0	R6 = 0x0	R7 = 0x0
+Register file thread id 1:
+	R0 = 0x0	R1 = 0x0	R2 = 0x0	R3 = 0x0	R4 = 0x0	R5 = 0x0	R6 = 0x0	R7 = 0x0
+Register file thread id 2:
+	R0 = 0x0	R1 = 0x0	R2 = 0x0	R3 = 0x0	R4 = 0x0	R5 = 0x0	R6 = 0x0	R7 = 0x0
+Blocked MT CPI for this program 1.800000
+
+-----Finegrained MT Simulation -----
+
+Register file thread id 0:
+	R0 = 0x0	R1 = 0x0	R2 = 0x0	R3 = 0x0	R4 = 0x0	R5 = 0x0	R6 = 0x0	R7 = 0x0
+Register file thread id 1:
+	R0 = 0x0	R1 = 0x0	R2 = 0x0	R3 = 0x0	R4 = 0x0	R5 = 0x0	R6 = 0x0	R7 = 0x0
+Register file thread id 2:
+	R0 = 0x0	R1 = 0x0	R2 = 0x0	R3 = 0x0	R4 = 0x0	R5 = 0x0	R6 = 0x0	R7 = 0x0
+Finegrained Multithreading CPI for this program 1.500000
+
